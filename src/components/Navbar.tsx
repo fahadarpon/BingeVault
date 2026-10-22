@@ -12,7 +12,8 @@ import {
   Share2,
   Check,
   Clapperboard,
-  UserPlus
+  UserPlus,
+  Compass
 } from 'lucide-react';
 import type { ViewMode } from '../types/media';
 import type { UserProfile } from '../types/user';
@@ -121,6 +122,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Kanban className="w-3.5 h-3.5" />
             <span>Board</span>
+          </button>
+          <button
+            onClick={() => onViewModeChange('discover')}
+            title="Discover Online Feed"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              viewMode === 'discover'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-600/30'
+                : 'text-purple-400 hover:text-purple-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-amber-400" />
+            <span>Discover</span>
           </button>
         </div>
 

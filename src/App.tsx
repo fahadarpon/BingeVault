@@ -16,10 +16,11 @@ import { FilterBar } from './components/FilterBar';
 import { MediaCard } from './components/MediaCard';
 import { MediaListItem } from './components/MediaListItem';
 import { KanbanView } from './components/KanbanView';
+import { DiscoverView } from './components/DiscoverView';
 import { MediaModal } from './components/MediaModal';
 import { StatsModal } from './components/StatsModal';
 import { AuthModal } from './components/AuthModal';
-import { Plus, FolderX, Sparkles, X } from 'lucide-react';
+import { Plus, FolderX, Sparkles, X, Compass } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentUser());
@@ -353,83 +354,102 @@ export function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Filter & Category Controls */}
-        <FilterBar
-          items={items}
-          selectedType={selectedType}
-          onSelectType={setSelectedType}
-          selectedStatus={selectedStatus}
-          onSelectStatus={setSelectedStatus}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          selectedGenre={selectedGenre}
-          onSelectGenre={setSelectedGenre}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          favoritesOnly={favoritesOnly}
-          onToggleFavoritesOnly={() => setFavoritesOnly(!favoritesOnly)}
-          availableGenres={availableGenres}
-        />
-
-        {/* Content Views */}
-        {filteredItems.length === 0 ? (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-slate-900/40 border border-slate-800/80 rounded-3xl">
-            <div className="p-4 rounded-2xl bg-slate-800/60 text-slate-500 mb-3">
-              <FolderX className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-slate-200">No media found</h3>
-            <p className="text-sm text-slate-400 max-w-md mt-1 mb-5">
-              {searchQuery || selectedGenre || favoritesOnly || selectedStatus !== 'all'
-                ? 'Try clearing some filters or searching for something else.'
-                : 'Your backlog is currently empty. Start logging movies, series, anime, and games!'}
-            </p>
-            <button
-              onClick={handleOpenAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add First Item</span>
-            </button>
-          </div>
-        ) : viewMode === 'grid' ? (
-          /* Grid View */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredItems.map((item) => (
-              <MediaCard
-                key={item.id}
-                item={item}
-                onEdit={handleOpenEdit}
-                onDelete={handleDeleteItem}
-                onToggleFavorite={handleToggleFavorite}
-                onIncrementProgress={handleIncrementProgress}
-                onQuickStatusChange={handleQuickStatusChange}
-              />
-            ))}
-          </div>
-        ) : viewMode === 'list' ? (
-          /* List View */
-          <div className="space-y-2">
-            {filteredItems.map((item) => (
-              <MediaListItem
-                key={item.id}
-                item={item}
-                onEdit={handleOpenEdit}
-                onDelete={handleDeleteItem}
-                onToggleFavorite={handleToggleFavorite}
-                onIncrementProgress={handleIncrementProgress}
-                onQuickStatusChange={handleQuickStatusChange}
-              />
-            ))}
-          </div>
-        ) : (
-          /* Kanban Board View */
-          <KanbanView
-            items={filteredItems}
-            onEdit={handleOpenEdit}
-            onIncrementProgress={handleIncrementProgress}
-            onStatusChange={handleQuickStatusChange}
+        {/* Render Discover View or Normal Vault View */}
+        {viewMode === 'discover' ? (
+          <DiscoverView
+            onAddMedia={handleSaveItem}
+            existingItems={items}
           />
+        ) : (
+          <>
+            {/* Filter & Category Controls */}
+            <FilterBar
+              items={items}
+              selectedType={selectedType}
+              onSelectType={setSelectedType}
+              selectedStatus={selectedStatus}
+              onSelectStatus={setSelectedStatus}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              selectedGenre={selectedGenre}
+              onSelectGenre={setSelectedGenre}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              favoritesOnly={favoritesOnly}
+              onToggleFavoritesOnly={() => setFavoritesOnly(!favoritesOnly)}
+              availableGenres={availableGenres}
+            />
+
+            {/* Content Views */}
+            {filteredItems.length === 0 ? (
+              /* Empty State */
+              <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-slate-900/40 border border-slate-800/80 rounded-3xl">
+                <div className="p-4 rounded-2xl bg-slate-800/60 text-slate-500 mb-3">
+                  <FolderX className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-bold text-slate-200">No media found</h3>
+                <p className="text-sm text-slate-400 max-w-md mt-1 mb-5">
+                  {searchQuery || selectedGenre || favoritesOnly || selectedStatus !== 'all'
+                    ? 'Try clearing some filters or searching for something else.'
+                    : 'Your backlog is currently empty. Start logging movies, series, anime, and games!'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleOpenAdd}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add First Item</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('discover')}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-purple-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all"
+                  >
+                    <Compass className="w-4 h-4 text-amber-400" />
+                    <span>Explore Discover</span>
+                  </button>
+                </div>
+              </div>
+            ) : viewMode === 'grid' ? (
+              /* Grid View */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredItems.map((item) => (
+                  <MediaCard
+                    key={item.id}
+                    item={item}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDeleteItem}
+                    onToggleFavorite={handleToggleFavorite}
+                    onIncrementProgress={handleIncrementProgress}
+                    onQuickStatusChange={handleQuickStatusChange}
+                  />
+                ))}
+              </div>
+            ) : viewMode === 'list' ? (
+              /* List View */
+              <div className="space-y-2">
+                {filteredItems.map((item) => (
+                  <MediaListItem
+                    key={item.id}
+                    item={item}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDeleteItem}
+                    onToggleFavorite={handleToggleFavorite}
+                    onIncrementProgress={handleIncrementProgress}
+                    onQuickStatusChange={handleQuickStatusChange}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Kanban Board View */
+              <KanbanView
+                items={filteredItems}
+                onEdit={handleOpenEdit}
+                onIncrementProgress={handleIncrementProgress}
+                onStatusChange={handleQuickStatusChange}
+              />
+            )}
+          </>
         )}
 
       </main>

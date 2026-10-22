@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, 
   User, 
@@ -7,7 +7,10 @@ import {
   Sparkles, 
   LogIn, 
   UserPlus, 
-  AlertCircle
+  AlertCircle,
+  Upload,
+  Link,
+  Camera
 } from 'lucide-react';
 import type { UserProfile } from '../types/user';
 import type { MediaItem } from '../types/media';
@@ -34,12 +37,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[0]);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
+  const [avatarMode, setAvatarMode] = useState<'preset' | 'upload' | 'url'>('preset');
   const [migrateGuestItems, setMigrateGuestItems] = useState(true);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setError('Image file must be under 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setSelectedAvatar(base64);
+        setAvatarMode('upload');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleApplyUrl = () => {
+    if (customAvatarUrl.trim()) {
+      setSelectedAvatar(customAvatarUrl.trim());
+      setAvatarMode('url');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,34 +262,120 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Choose Avatar (only on signup) */}
+          {/* CUSTOM AVATAR OPTIONS (only on signup) */}
           {mode === 'signup' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
-                Choose Profile Avatar
-              </label>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {AVATAR_PRESETS.map((av, idx) => {
-                  const isSelected = selectedAvatar === av;
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => setSelectedAvatar(av)}
-                      className={`relative w-10 h-10 rounded-full overflow-hidden cursor-pointer border-2 transition-all flex-shrink-0 ${
-                        isSelected 
-                          ? 'border-purple-500 ring-2 ring-purple-500/40 scale-105' 
-                          : 'border-slate-700 opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img src={av} alt="avatar" className="w-full h-full object-cover" />
+            <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-purple-300 uppercase tracking-wider">
+                  Profile Avatar
+                </label>
+                <div className="flex gap-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarMode('preset')}
+                    className={`px-2 py-0.5 rounded ${avatarMode === 'preset' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Presets
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarMode('upload');
+                      fileInputRef.current?.click();
+                    }}
+                    className={`px-2 py-0.5 rounded flex items-center gap-1 ${avatarMode === 'upload' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    <Upload className="w-2.5 h-2.5" />
+                    <span>Upload Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarMode('url')}
+                    className={`px-2 py-0.5 rounded flex items-center gap-1 ${avatarMode === 'url' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    <Link className="w-2.5 h-2.5" />
+                    <span>Image URL</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Avatar Preview & Choice */}
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500 ring-2 ring-purple-500/30 flex-shrink-0 bg-slate-900">
+                  <img src={selectedAvatar} alt="preview" className="w-full h-full object-cover" />
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                    title="Change Avatar"
+                  >
+                    <Camera className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  {avatarMode === 'preset' && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {AVATAR_PRESETS.map((av, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setSelectedAvatar(av)}
+                          className={`w-8 h-8 rounded-full overflow-hidden cursor-pointer border transition-all flex-shrink-0 ${
+                            selectedAvatar === av 
+                              ? 'border-purple-400 ring-2 ring-purple-500/50 scale-105' 
+                              : 'border-slate-700 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={av} alt="avatar" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
+                  )}
+
+                  {avatarMode === 'upload' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full py-1.5 px-3 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 rounded-xl text-xs text-purple-200 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Choose Photo From Device</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {avatarMode === 'url' && (
+                    <div className="flex gap-1.5">
+                      <input
+                        type="url"
+                        placeholder="Paste image link https://..."
+                        value={customAvatarUrl}
+                        onChange={(e) => setCustomAvatarUrl(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-purple-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyUrl}
+                        className="px-2.5 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold"
+                      >
+                        Set
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
             </div>
           )}
 
-          {/* Migration Checkbox (only on signup if guest has items) */}
+          {/* Migration Checkbox */}
           {mode === 'signup' && guestItemsCount > 0 && (
             <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800 cursor-pointer">
               <input

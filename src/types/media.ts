@@ -54,7 +54,7 @@ export interface GameItem extends BaseMediaItem {
 
 export type MediaItem = MovieItem | SeriesItem | AnimeItem | GameItem;
 
-export type ViewMode = 'grid' | 'list' | 'kanban';
+export type ViewMode = 'grid' | 'list' | 'kanban' | 'discover';
 
 export type SortOption = 
   | 'updated_desc' 
