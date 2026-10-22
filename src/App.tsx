@@ -74,6 +74,19 @@ export function App() {
     setItems(loadMediaItems());
   };
 
+  const handleGoHome = () => {
+    setViewMode('grid');
+    setSelectedType('all');
+    setSelectedStatus('all');
+    setSearchQuery('');
+    setSelectedGenre('');
+    setFavoritesOnly(false);
+    if (window.location.hash) {
+      window.location.hash = '';
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Check URL hash for shared collection link
   useEffect(() => {
     try {
@@ -349,6 +362,7 @@ export function App() {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
+        onGoHome={handleGoHome}
       />
 
       {/* Main Container */}
