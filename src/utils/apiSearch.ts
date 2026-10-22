@@ -18,6 +18,9 @@ export interface SearchResultItem {
   platform?: string;
 }
 
+// In-memory cache for bulk catalogs
+let cachedDiscoverItems: SearchResultItem[] | null = null;
+
 export async function searchOnlineMedia(query: string, type: MediaType): Promise<SearchResultItem[]> {
   if (!query.trim()) return [];
   const cleanQuery = query.trim();
@@ -38,9 +41,9 @@ export async function searchOnlineMedia(query: string, type: MediaType): Promise
   }
 }
 
-// 1. ANIME: Kitsu Open API
+// 1. ANIME: Kitsu Open API Search
 async function searchAnime(query: string): Promise<SearchResultItem[]> {
-  const url = `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=6`;
+  const url = `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=10`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
@@ -69,7 +72,7 @@ async function searchAnime(query: string): Promise<SearchResultItem[]> {
   });
 }
 
-// 2. TV SERIES: TVMaze Open API
+// 2. TV SERIES: TVMaze Open API Search
 async function searchSeries(query: string): Promise<SearchResultItem[]> {
   const url = `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(query)}`;
   const res = await fetch(url);
@@ -78,7 +81,7 @@ async function searchSeries(query: string): Promise<SearchResultItem[]> {
 
   if (!Array.isArray(data)) return [];
 
-  return data.slice(0, 6).map((item: any) => {
+  return data.slice(0, 10).map((item: any) => {
     const show = item.show || {};
     const title = show.name || query;
     const posterUrl = show.image?.original || show.image?.medium || '';
@@ -106,13 +109,13 @@ async function searchSeries(query: string): Promise<SearchResultItem[]> {
 
 // 3. MOVIES: Wikipedia Search & Summary
 async function searchMovies(query: string): Promise<SearchResultItem[]> {
-  const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query + ' film')}&limit=4&namespace=0&format=json&origin=*`;
+  const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query + ' film')}&limit=6&namespace=0&format=json&origin=*`;
   const res = await fetch(searchUrl);
   if (!res.ok) return [];
   const [, titles] = await res.json();
 
   if (!titles || titles.length === 0) {
-    const fallbackRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=3&namespace=0&format=json&origin=*`);
+    const fallbackRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&namespace=0&format=json&origin=*`);
     const [, fallbackTitles] = await fallbackRes.json();
     return fetchWikipediaPages(fallbackTitles || [], 'movie');
   }
@@ -122,13 +125,13 @@ async function searchMovies(query: string): Promise<SearchResultItem[]> {
 
 // 4. GAMES: Wikipedia Search & Summary
 async function searchGames(query: string): Promise<SearchResultItem[]> {
-  const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query + ' video game')}&limit=4&namespace=0&format=json&origin=*`;
+  const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query + ' video game')}&limit=6&namespace=0&format=json&origin=*`;
   const res = await fetch(searchUrl);
   if (!res.ok) return [];
   const [, titles] = await res.json();
 
   if (!titles || titles.length === 0) {
-    const fallbackRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=3&namespace=0&format=json&origin=*`);
+    const fallbackRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&namespace=0&format=json&origin=*`);
     const [, fallbackTitles] = await fallbackRes.json();
     return fetchWikipediaPages(fallbackTitles || [], 'game');
   }
@@ -139,7 +142,7 @@ async function searchGames(query: string): Promise<SearchResultItem[]> {
 async function fetchWikipediaPages(titles: string[], type: MediaType): Promise<SearchResultItem[]> {
   const results: SearchResultItem[] = [];
 
-  for (const rawTitle of titles.slice(0, 5)) {
+  for (const rawTitle of titles.slice(0, 6)) {
     try {
       const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(rawTitle)}`;
       const res = await fetch(summaryUrl);
@@ -173,129 +176,131 @@ async function fetchWikipediaPages(titles: string[], type: MediaType): Promise<S
   return results;
 }
 
-// --- DISCOVER / POPULAR TITLES FETCHER ---
-export async function fetchDiscoverMedia(type: MediaType | 'all'): Promise<SearchResultItem[]> {
-  const results: SearchResultItem[] = [];
+// --- FULL BULK CATALOGS FROM LIVE FREE APIS ---
+export async function fetchFullLiveCatalog(forceRefresh = false): Promise<SearchResultItem[]> {
+  if (cachedDiscoverItems && !forceRefresh) {
+    return cachedDiscoverItems;
+  }
 
-  // Fetch Trending Anime from Kitsu API
-  if (type === 'all' || type === 'anime') {
+  const allItems: SearchResultItem[] = [];
+
+  // 1. ANIME: Fetch multi-page top anime from Kitsu (60 top anime)
+  const animePromise = (async () => {
     try {
-      const res = await fetch('https://kitsu.io/api/edge/trending/anime?limit=8');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.data)) {
-          data.data.forEach((item: any) => {
-            const attr = item.attributes || {};
-            results.push({
-              id: `disc_anime_${item.id}`,
-              type: 'anime',
-              title: attr.canonicalTitle || attr.titles?.en || 'Anime Title',
-              posterUrl: attr.posterImage?.large || attr.posterImage?.medium || '',
-              releaseYear: attr.startDate ? parseInt(attr.startDate.slice(0, 4), 10) : 2023,
-              genres: ['Anime', 'Animation', 'Action'],
-              description: attr.synopsis ? attr.synopsis.slice(0, 240) + '...' : '',
-              rating: attr.averageRating ? parseFloat((parseFloat(attr.averageRating) / 10).toFixed(1)) : 8.8,
-              totalEpisodes: attr.episodeCount || 24,
-            });
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to fetch trending anime:', e);
-    }
-  }
+      const p1 = fetch('https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=0&sort=-userCount').then(r => r.json());
+      const p2 = fetch('https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=20&sort=-userCount').then(r => r.json());
+      const p3 = fetch('https://kitsu.io/api/edge/anime?page[limit]=20&page[offset]=40&sort=-userCount').then(r => r.json());
+      const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
 
-  // Fetch Trending TV Series from TVMaze API
-  if (type === 'all' || type === 'series') {
+      const list = [...(r1.data || []), ...(r2.data || []), ...(r3.data || [])];
+      return list.map((item: any) => {
+        const attr = item.attributes || {};
+        return {
+          id: `full_anime_${item.id}`,
+          type: 'anime' as MediaType,
+          title: attr.canonicalTitle || attr.titles?.en || attr.titles?.en_jp || 'Anime Title',
+          posterUrl: attr.posterImage?.large || attr.posterImage?.medium || '',
+          releaseYear: attr.startDate ? parseInt(attr.startDate.slice(0, 4), 10) : undefined,
+          genres: ['Anime', 'Animation', 'Action'],
+          description: attr.synopsis ? attr.synopsis.slice(0, 240) + '...' : '',
+          rating: attr.averageRating ? parseFloat((parseFloat(attr.averageRating) / 10).toFixed(1)) : 8.5,
+          totalEpisodes: attr.episodeCount || 24,
+        };
+      });
+    } catch (e) {
+      console.warn('Anime fetch error:', e);
+      return [];
+    }
+  })();
+
+  // 2. TV SERIES: Fetch full catalog from TVMaze (240 shows)
+  const seriesPromise = (async () => {
     try {
-      const popularQuery = ['Severance', 'Arcane', 'The Last of Us', 'Stranger Things', 'Fallout', 'House of the Dragon', 'Shogun', 'Breaking Bad'];
-      for (const title of popularQuery.slice(0, 6)) {
-        const res = await fetch(`https://api.tvmaze.com/singlesearch/shows?q=${encodeURIComponent(title)}`);
-        if (res.ok) {
-          const show = await res.json();
-          results.push({
-            id: `disc_series_${show.id}`,
-            type: 'series',
-            title: show.name,
-            posterUrl: show.image?.original || show.image?.medium || '',
-            releaseYear: show.premiered ? parseInt(show.premiered.slice(0, 4), 10) : 2023,
-            genres: show.genres || ['Drama'],
-            description: show.summary ? show.summary.replace(/<[^>]*>?/gm, '').slice(0, 240) + '...' : '',
-            rating: show.rating?.average || 9.0,
-            network: show.network?.name || show.webChannel?.name || 'Streaming',
-          });
-        }
-      }
+      const res = await fetch('https://api.tvmaze.com/shows?page=0');
+      if (!res.ok) return [];
+      const shows = await res.json();
+      if (!Array.isArray(shows)) return [];
+
+      return shows.slice(0, 200).map((show: any) => ({
+        id: `full_series_${show.id}`,
+        type: 'series' as MediaType,
+        title: show.name,
+        posterUrl: show.image?.original || show.image?.medium || '',
+        releaseYear: show.premiered ? parseInt(show.premiered.slice(0, 4), 10) : undefined,
+        genres: show.genres?.length > 0 ? show.genres : ['Drama'],
+        description: show.summary ? show.summary.replace(/<[^>]*>?/gm, '').slice(0, 240) + '...' : '',
+        rating: show.rating?.average || 8.0,
+        network: show.network?.name || show.webChannel?.name || 'TV',
+      }));
     } catch (e) {
-      console.warn('Failed to fetch trending series:', e);
+      console.warn('Series fetch error:', e);
+      return [];
     }
-  }
+  })();
 
-  // Fetch Top Movies from Wikipedia REST API
-  if (type === 'all' || type === 'movie') {
-    const popularMovies = [
-      'Dune: Part Two',
-      'Spider-Man: Across the Spider-Verse',
-      'Oppenheimer (film)',
-      'Interstellar (film)',
-      'Inception',
-      'Everything Everywhere All at Once'
-    ];
-    for (const title of popularMovies) {
-      try {
-        const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
-        if (res.ok) {
-          const data = await res.json();
-          const cleanTitle = data.title.replace(/\s\((film|video game|franchise|series)\)/gi, '');
-          results.push({
-            id: `disc_movie_${data.pageid || Math.random()}`,
-            type: 'movie',
-            title: cleanTitle,
-            posterUrl: data.thumbnail?.source || '',
-            releaseYear: 2023,
-            genres: ['Sci-Fi', 'Cinema', 'Action'],
-            description: data.extract ? data.extract.slice(0, 240) + '...' : '',
-            rating: 9.2,
-          });
-        }
-      } catch {
-        // continue
-      }
+  // 3. VIDEO GAMES: Fetch 200+ games from FreeToGame API
+  const gamesPromise = (async () => {
+    try {
+      const res = await fetch('https://www.freetogame.com/api/games');
+      if (!res.ok) return [];
+      const games = await res.json();
+      if (!Array.isArray(games)) return [];
+
+      return games.slice(0, 180).map((g: any) => ({
+        id: `full_game_${g.id}`,
+        type: 'game' as MediaType,
+        title: g.title,
+        posterUrl: g.thumbnail || '',
+        releaseYear: g.release_date ? parseInt(g.release_date.slice(0, 4), 10) : 2023,
+        genres: [g.genre || 'Action', 'Video Game'],
+        description: g.short_description ? g.short_description.slice(0, 240) + '...' : '',
+        rating: 8.8,
+        platform: g.platform || 'PC',
+      }));
+    } catch (e) {
+      console.warn('Games fetch error:', e);
+      return [];
     }
-  }
+  })();
 
-  // Fetch Hit Video Games from Wikipedia REST API
-  if (type === 'all' || type === 'game') {
-    const popularGames = [
-      'Elden Ring',
-      'Black Myth: Wukong',
-      'Baldur\'s Gate 3',
-      'Cyberpunk 2077',
-      'The Legend of Zelda: Tears of the Kingdom',
-      'Hollow Knight'
-    ];
-    for (const title of popularGames) {
-      try {
-        const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
-        if (res.ok) {
-          const data = await res.json();
-          results.push({
-            id: `disc_game_${data.pageid || Math.random()}`,
-            type: 'game',
-            title: data.title,
-            posterUrl: data.thumbnail?.source || '',
-            releaseYear: 2024,
-            genres: ['Action RPG', 'Adventure', 'Open World'],
-            description: data.extract ? data.extract.slice(0, 240) + '...' : '',
-            rating: 9.5,
-            platform: 'PC / Console',
-          });
-        }
-      } catch {
-        // continue
-      }
+  // 4. MOVIES: Fetch 146 full classic & popular movies from open catalog
+  const moviesPromise = (async () => {
+    try {
+      const res = await fetch('https://raw.githubusercontent.com/erik-sytnyk/movies-list/master/db.json');
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!data.movies || !Array.isArray(data.movies)) return [];
+
+      return data.movies.map((m: any) => ({
+        id: `full_movie_${m.id}`,
+        type: 'movie' as MediaType,
+        title: m.title,
+        posterUrl: m.posterUrl || '',
+        releaseYear: m.year ? parseInt(m.year, 10) : undefined,
+        genres: m.genres || ['Cinema', 'Drama'],
+        description: m.plot ? m.plot.slice(0, 240) + '...' : '',
+        rating: 9.0,
+        director: m.director,
+        runtimeMinutes: m.runtime ? parseInt(m.runtime, 10) : undefined,
+      }));
+    } catch (e) {
+      console.warn('Movies fetch error:', e);
+      return [];
     }
-  }
+  })();
 
-  return results;
+  const [animeList, seriesList, gamesList, moviesList] = await Promise.all([
+    animePromise,
+    seriesPromise,
+    gamesPromise,
+    moviesPromise
+  ]);
+
+  allItems.push(...animeList);
+  allItems.push(...seriesList);
+  allItems.push(...gamesList);
+  allItems.push(...moviesList);
+
+  cachedDiscoverItems = allItems;
+  return allItems;
 }
