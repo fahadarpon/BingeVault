@@ -5,15 +5,13 @@ import {
   Download, 
   Upload, 
   RotateCcw, 
-  LayoutGrid, 
-  List, 
-  Kanban,
   MoreVertical,
   Share2,
   Check,
   Clapperboard,
   UserPlus,
-  Compass
+  Compass,
+  Bookmark
 } from 'lucide-react';
 import type { ViewMode } from '../types/media';
 import type { UserProfile } from '../types/user';
@@ -64,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0b0f19]/90 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         
         {/* Brand: BingeVault (Click to go Home) */}
@@ -73,69 +71,46 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="flex items-center gap-3 cursor-pointer group select-none transition-all hover:scale-[1.02] active:scale-[0.98]"
           title="Return to BingeVault Home"
         >
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-600 via-purple-600 to-pink-500 shadow-lg shadow-purple-600/30 ring-1 ring-white/20 group-hover:shadow-purple-500/50 transition-shadow">
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-purple-500 to-indigo-600 shadow-lg shadow-purple-600/30 ring-1 ring-white/20 group-hover:shadow-purple-500/50 transition-shadow">
             <Clapperboard className="w-5 h-5 text-white group-hover:rotate-6 transition-transform" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent group-hover:from-white group-hover:to-purple-200 transition-colors">
+              <span className="font-black text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent group-hover:from-white group-hover:to-purple-200 transition-colors uppercase">
                 Binge<span className="text-purple-400 group-hover:text-purple-300">Vault</span>
               </span>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                {totalCount} Titles
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
+                {totalCount}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Movies • Series • Anime • Games
+            <p className="text-[10px] text-slate-400 hidden sm:block font-medium">
+              Cinema • Series • Anime • Games
             </p>
           </div>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="hidden md:flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1">
+        {/* Trakt-Style Center Navigation */}
+        <div className="flex items-center bg-slate-900/90 border border-white/10 rounded-xl p-1">
           <button
             onClick={() => onViewModeChange('grid')}
-            title="Grid Cards"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              viewMode === 'grid'
-                ? 'bg-purple-600 text-white shadow-sm'
+            title="My Vault Library"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === 'grid' || viewMode === 'list' || viewMode === 'kanban'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Cards</span>
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>My Vault</span>
           </button>
-          <button
-            onClick={() => onViewModeChange('list')}
-            title="Compact List"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              viewMode === 'list'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <List className="w-3.5 h-3.5" />
-            <span>List</span>
-          </button>
-          <button
-            onClick={() => onViewModeChange('kanban')}
-            title="Kanban Board"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              viewMode === 'kanban'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Kanban className="w-3.5 h-3.5" />
-            <span>Board</span>
-          </button>
+
           <button
             onClick={() => onViewModeChange('discover')}
-            title="Discover Online Feed"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            title="Discover Live Feed"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === 'discover'
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-600/30'
-                : 'text-purple-400 hover:text-purple-200 hover:bg-slate-800/60'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                : 'text-purple-300 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Compass className="w-3.5 h-3.5 text-amber-400" />
@@ -152,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl border transition-all ${
               copiedShareLink
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border-slate-800'
+                : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border-white/10'
             }`}
             title="Share your collection with friends"
           >
@@ -163,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Stats Button */}
           <button
             onClick={onOpenStatsModal}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl transition-all"
             title="View Library Analytics & Breakdown"
           >
             <BarChart3 className="w-4 h-4 text-purple-400" />
@@ -201,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 rounded-xl transition-all"
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 border border-white/10 rounded-xl transition-all"
               title="Backup, export, import data"
             >
               <MoreVertical className="w-4 h-4" />
@@ -213,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="fixed inset-0 z-40" 
                   onClick={() => setMenuOpen(false)} 
                 />
-                <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 p-1.5 text-xs">
+                <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 p-1.5 text-xs backdrop-blur-xl">
                   <button
                     onClick={() => {
                       setMenuOpen(false);

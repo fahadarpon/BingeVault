@@ -12,6 +12,8 @@ import { getCurrentUser, signOutUser, getUserMedia, saveUserMedia } from './util
 import { INITIAL_ITEMS } from './data/sampleData';
 import { fireCelebrationConfetti } from './utils/helpers';
 import { Navbar } from './components/Navbar';
+import { TraktHero } from './components/TraktHero';
+import { UpNextSection } from './components/UpNextSection';
 import { FilterBar } from './components/FilterBar';
 import { MediaCard } from './components/MediaCard';
 import { MediaListItem } from './components/MediaListItem';
@@ -20,7 +22,7 @@ import { DiscoverView } from './components/DiscoverView';
 import { MediaModal } from './components/MediaModal';
 import { StatsModal } from './components/StatsModal';
 import { AuthModal } from './components/AuthModal';
-import { Plus, FolderX, Sparkles, X, Compass } from 'lucide-react';
+import { Plus, FolderX, Sparkles, X, Compass, LayoutGrid, List, Kanban } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentUser());
@@ -368,7 +370,7 @@ export function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Render Discover View or Normal Vault View */}
+        {/* Render Discover View or Trakt-Style Dashboard */}
         {viewMode === 'discover' ? (
           <DiscoverView
             onAddMedia={handleSaveItem}
@@ -376,6 +378,77 @@ export function App() {
           />
         ) : (
           <>
+            {/* Trakt-Style Spotlight Hero Banner (only in default all view with items) */}
+            {selectedType === 'all' && selectedStatus === 'all' && !searchQuery && !selectedGenre && !favoritesOnly && (
+              <TraktHero
+                items={items}
+                onEdit={handleOpenEdit}
+                onIncrementProgress={handleIncrementProgress}
+                onQuickStatusChange={handleQuickStatusChange}
+              />
+            )}
+
+            {/* Trakt-Style "Up Next" Row for Active In-Progress Titles */}
+            {selectedType === 'all' && selectedStatus === 'all' && !searchQuery && !selectedGenre && !favoritesOnly && (
+              <UpNextSection
+                items={items}
+                onEdit={handleOpenEdit}
+                onIncrementProgress={handleIncrementProgress}
+                onQuickStatusChange={handleQuickStatusChange}
+                onGoToDiscover={() => setViewMode('discover')}
+              />
+            )}
+
+            {/* Library Section Header with View Mode Switchers */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-100 tracking-tight flex items-center gap-2">
+                  <span>My Media Library</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">
+                    {filteredItems.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400">Filter, sort, and manage your tracked titles</p>
+              </div>
+
+              {/* View Mode Switcher buttons */}
+              <div className="flex items-center bg-slate-900 border border-white/10 rounded-xl p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  title="Cards Grid"
+                  className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  title="Compact List"
+                  className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  title="Kanban Board"
+                  className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'kanban'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Kanban className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Filter & Category Controls */}
             <FilterBar
               items={items}
@@ -425,8 +498,8 @@ export function App() {
                 </div>
               </div>
             ) : viewMode === 'grid' ? (
-              /* Grid View */
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              /* Grid View with 2:3 Cinema Posters */
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4">
                 {filteredItems.map((item) => (
                   <MediaCard
                     key={item.id}
